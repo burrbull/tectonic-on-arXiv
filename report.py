@@ -144,21 +144,13 @@ _libmagic_threadsafe = threading.Lock()
 class TestEnv(object):
 	def __init__(self, sample):
 		self.tmpdir = Path(tempfile.mkdtemp('ttrac'))
-		with _libmagic_threadsafe:
-			assert magic.detect_from_filename(sample).mime_type == 'application/gzip'
-
-		submission_data_path = self.tmpdir / sample.stem
-
-
-		with gzip.open(sample) as gz:
-			with open(submission_data_path, "wb") as f:
-				shutil.copyfileobj(gz, f)
 
 		with _libmagic_threadsafe:
-			if magic.detect_from_filename(submission_data_path).mime_type == "application/x-tar":
-				with tarfile.open(submission_data_path, 'r') as tar:
+			m = magic.Magic();
+			if m.from_file(str(sample)) == "application/x-tar":
+				with tarfile.open(sample, 'r') as tar:
 					tar.extractall(path=self.tmpdir)
-				submission_data_path.unlink()
+				print(f"Done: {sample}")
 	def __enter__(self):
 		return self.tmpdir
 	def __exit__(self, exc, value, tb):
@@ -169,11 +161,11 @@ def do_work(sample, repo):
 	if sample.stat().st_size < 100:
 		# submission was withdrawn
 		return
-	if sample.stem == "1702.07035": return # no tex sources
-	if sample.stem == "1702.07668": return
-	if sample.stem == "1702.06452": return
+	if sample.name == "1702.07035": return # no tex sources
+	if sample.name == "1702.07668": return
+	if sample.name == "1702.06452": return
 
-	report = {"engines": {}, "sample": sample.stem}
+	report = {"engines": {}, "sample": sample.name}
 
 	env = os.environ.copy()
 	env["SOURCE_DATE_EPOCH"] = "1456304492"
@@ -295,8 +287,8 @@ def report(corpus, repo):
 		threads.append(t)
 
 	for sample in Path(corpus).iterdir():
-		if sample.stem in skipSamples:
-			print(sample.stem, "already reported")
+		if sample.name in skipSamples:
+			print(sample.name, "already reported")
 			continue
 		work.put(sample)
 
