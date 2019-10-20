@@ -145,12 +145,18 @@ class TestEnv(object):
 	def __init__(self, sample):
 		self.tmpdir = Path(tempfile.mkdtemp('ttrac'))
 
-		with _libmagic_threadsafe:
-			m = magic.Magic();
-			if m.from_file(str(sample)) == "application/x-tar":
-				with tarfile.open(sample, 'r') as tar:
-					tar.extractall(path=self.tmpdir)
-				print(f"Done: {sample}")
+		if tarfile.is_tarfile(str(sample)):
+			with tarfile.open(sample, 'r') as tar:
+				tar.extractall(path=self.tmpdir)
+
+		else:
+			with _libmagic_threadsafe:
+				m = magic.Magic()
+				if m.from_file(str(sample)) == 'application/gzip':
+					tex = self.tmpdir / "main.tex"
+					with gzip.open(sample) as gz:
+						with open(tex, "wb") as f:
+							shutil.copyfileobj(gz, f)
 	def __enter__(self):
 		return self.tmpdir
 	def __exit__(self, exc, value, tb):
